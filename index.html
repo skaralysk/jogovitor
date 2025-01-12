@@ -8,7 +8,7 @@
     body {
       margin: 0;
       overflow: hidden;
-      background: url('https://i.imgur.com/mqOkbH0.jpeg') no-repeat center center fixed; /* Imagem de fundo personalizada */
+      background: url('https://i.imgur.com/mqOkbH0.jpeg') no-repeat center center fixed;
       background-size: cover;
       color: #000000;
       font-family: Arial, sans-serif;
@@ -16,26 +16,18 @@
     canvas {
       display: block;
     }
-    h1 {
-color
-    }
-
-
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
 
-
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-
     // Configurações iniciais
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-
 
     const player = {
       x: canvas.width / 2 - 25,
@@ -48,38 +40,53 @@ color
     };
     player.image.src = 'https://i.imgur.com/HkXn4ay.png'; // Personalização do jogador
 
-
     const obstacles = [];
     const obstacleSpeedBase = 4;
     let obstacleSpeed = obstacleSpeedBase;
     const obstacleInterval = 1200; // Obstáculos aparecem mais rápido
     let lastObstacleTime = 0;
 
-
     let score = 0;
     let gameOver = false;
-
 
     const obstacleImage = new Image();
     obstacleImage.src = 'https://i.imgur.com/zZf5yyR.png'; // Personalização dos obstáculos
 
-
-    // Detecta teclas pressionadas
+    // Controle por teclas
     const keys = {
       ArrowLeft: false,
       ArrowRight: false
     };
 
+    // Controle por toque
+    let touchStartX = 0;
+    let touchEndX = 0;
 
     window.addEventListener('keydown', (e) => {
       if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     });
 
-
     window.addEventListener('keyup', (e) => {
       if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
     });
 
+    window.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      touchEndX = e.touches[0].clientX;
+    });
+
+    window.addEventListener('touchend', () => {
+      if (touchStartX > touchEndX) {
+        keys.ArrowLeft = true;
+        keys.ArrowRight = false;
+      } else if (touchStartX < touchEndX) {
+        keys.ArrowLeft = false;
+        keys.ArrowRight = true;
+      }
+    });
 
     function drawPlayer() {
       if (player.image.complete) {
@@ -89,7 +96,6 @@ color
         ctx.fillRect(player.x, player.y, player.width, player.height);
       }
     }
-
 
     function drawObstacles() {
       for (const obstacle of obstacles) {
@@ -102,7 +108,6 @@ color
       }
     }
 
-
     function createObstacle() {
       const obstacleWidth = Math.random() * 80 + 20;
       const obstacleX = Math.random() * (canvas.width - obstacleWidth);
@@ -113,7 +118,6 @@ color
         height: 20 + Math.random() * 30
       });
     }
-
 
     function updateObstacles() {
       for (const obstacle of obstacles) {
@@ -126,7 +130,6 @@ color
         if (score % 5 === 0) obstacleSpeed += 0.5; // Aumenta a dificuldade ao longo do tempo
       }
     }
-
 
     function checkCollision() {
       for (const obstacle of obstacles) {
@@ -141,19 +144,16 @@ color
       }
     }
 
-
     function updatePlayer() {
       if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
       if (keys.ArrowRight && player.x + player.width < canvas.width) player.x += player.speed;
     }
-
 
     function drawScore() {
       ctx.fillStyle = 'white';
       ctx.font = '20px Arial';
       ctx.fillText(`Score: ${score}`, 20, 30);
     }
-
 
     function gameLoop(timestamp) {
       if (gameOver) {
@@ -165,33 +165,25 @@ color
         return;
       }
 
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
 
       if (timestamp - lastObstacleTime > obstacleInterval) {
         createObstacle();
         lastObstacleTime = timestamp;
       }
 
-
       updatePlayer();
       updateObstacles();
       checkCollision();
-
 
       drawPlayer();
       drawObstacles();
       drawScore();
 
-
       requestAnimationFrame(gameLoop);
     }
-
 
     gameLoop(0);
   </script>
 </body>
 </html>
-
-
