@@ -8,26 +8,80 @@
     body {
       margin: 0;
       overflow: hidden;
-      background: url('https://i.imgur.com/mqOkbH0.jpeg') no-repeat center center fixed;
+      background: url('https://i.imgur.com/u0tdAUb.gif') no-repeat center center fixed; /* Imagem de fundo personalizada */
       background-size: cover;
-      color: #000000;
+      color: #fff;
       font-family: Arial, sans-serif;
     }
     canvas {
       display: block;
     }
+    #restartButton {
+      display: none;
+      position: absolute;
+      top: 75%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #restartButton:hover {
+      background-color: #610404;
+    }
+    #pauseButton {
+      position: absolute;
+      top: 30px;
+      left: 1200px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #771f05;
+      color: rgb(255, 0, 0);
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #pauseButton:hover {
+      background-color: #0019f8;
+    }
+    #gameOverImage {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+     
+    }
+    #highScore {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 20px;
+      color: rgb(255, 238, 0);
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <img id="gameOverImage" src="https://i.imgur.com/XnnurEM.png" alt="Game Over">
+  <button id="restartButton" onclick="location.reload()">Restart</button>
+  <button id="pauseButton">Pause</button>
+  <div id="highScore">High Score: 0</div>
+
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
+
     // Configurações iniciais
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
 
     const player = {
       x: canvas.width / 2 - 25,
@@ -36,9 +90,12 @@
       height: 100,
       color: 'cyan',
       speed: 7,
-      image: new Image()
+      image: new Image(),
+      dx: 0, // Velocidade horizontal
+      dy: 0 // Velocidade vertical
     };
-    player.image.src = 'https://i.imgur.com/HkXn4ay.png'; // Personalização do jogador
+    player.image.src = 'https://i.imgur.com/XXudPG0.png'; // Personalização do jogador
+
 
     const obstacles = [];
     const obstacleSpeedBase = 4;
@@ -46,47 +103,41 @@
     const obstacleInterval = 1200; // Obstáculos aparecem mais rápido
     let lastObstacleTime = 0;
 
+
     let score = 0;
     let gameOver = false;
+    let isPaused = false;
+
 
     const obstacleImage = new Image();
     obstacleImage.src = 'https://i.imgur.com/zZf5yyR.png'; // Personalização dos obstáculos
 
-    // Controle por teclas
+
+    const gameOverImage = document.getElementById('gameOverImage');
+
+
+    let highScore = localStorage.getItem('highScore') || 0;
+    document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+
+
+    // Detecta teclas pressionadas
     const keys = {
       ArrowLeft: false,
-      ArrowRight: false
+      ArrowRight: false,
+      ArrowUp: false,
+      ArrowDown: false
     };
 
-    // Controle por toque
-    let touchStartX = 0;
-    let touchEndX = 0;
 
     window.addEventListener('keydown', (e) => {
       if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     });
 
+
     window.addEventListener('keyup', (e) => {
       if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
     });
 
-    window.addEventListener('touchstart', (e) => {
-      touchStartX = e.touches[0].clientX;
-    });
-
-    window.addEventListener('touchmove', (e) => {
-      touchEndX = e.touches[0].clientX;
-    });
-
-    window.addEventListener('touchend', () => {
-      if (touchStartX > touchEndX) {
-        keys.ArrowLeft = true;
-        keys.ArrowRight = false;
-      } else if (touchStartX < touchEndX) {
-        keys.ArrowLeft = false;
-        keys.ArrowRight = true;
-      }
-    });
 
     function drawPlayer() {
       if (player.image.complete) {
@@ -96,6 +147,7 @@
         ctx.fillRect(player.x, player.y, player.width, player.height);
       }
     }
+
 
     function drawObstacles() {
       for (const obstacle of obstacles) {
@@ -108,16 +160,19 @@
       }
     }
 
+
     function createObstacle() {
-      const obstacleWidth = Math.random() * 80 + 20;
+      const obstacleWidth = Math.random() * 160 + 45; // Aumentando o tamanho dos obstáculos
+      const obstacleHeight = Math.random() * 60 + 35; // Adicionando altura maior
       const obstacleX = Math.random() * (canvas.width - obstacleWidth);
       obstacles.push({
         x: obstacleX,
         y: -20,
         width: obstacleWidth,
-        height: 20 + Math.random() * 30
+        height: obstacleHeight
       });
     }
+
 
     function updateObstacles() {
       for (const obstacle of obstacles) {
@@ -130,6 +185,7 @@
         if (score % 5 === 0) obstacleSpeed += 0.5; // Aumenta a dificuldade ao longo do tempo
       }
     }
+
 
     function checkCollision() {
       for (const obstacle of obstacles) {
@@ -144,10 +200,21 @@
       }
     }
 
+
     function updatePlayer() {
-      if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
-      if (keys.ArrowRight && player.x + player.width < canvas.width) player.x += player.speed;
+      player.dx = (keys.ArrowRight ? player.speed : 0) - (keys.ArrowLeft ? player.speed : 0);
+      player.dy = (keys.ArrowDown ? player.speed : 0) - (keys.ArrowUp ? player.speed : 0);
+
+
+      player.x += player.dx;
+      player.y += player.dy;
+
+
+      // Impedir o jogador de sair da tela
+      player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+      player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
     }
+
 
     function drawScore() {
       ctx.fillStyle = 'white';
@@ -155,35 +222,65 @@
       ctx.fillText(`Score: ${score}`, 20, 30);
     }
 
+
+    function handleGameOver() {
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+      }
+      gameOverImage.style.display = 'block';
+      document.getElementById('restartButton').style.display = 'block';
+      document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+    }
+
+
+    document.getElementById('pauseButton').addEventListener('click', () => {
+      isPaused = !isPaused;
+      document.getElementById('pauseButton').textContent = isPaused ? 'Resume' : 'Pause';
+    });
+
+
     function gameLoop(timestamp) {
       if (gameOver) {
-        ctx.fillStyle = 'white';
-        ctx.font = '40px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2);
-        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 50);
+        handleGameOver();
         return;
       }
 
+
+      if (isPaused) {
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
 
       if (timestamp - lastObstacleTime > obstacleInterval) {
         createObstacle();
         lastObstacleTime = timestamp;
       }
 
+
       updatePlayer();
       updateObstacles();
       checkCollision();
+
 
       drawPlayer();
       drawObstacles();
       drawScore();
 
+
       requestAnimationFrame(gameLoop);
     }
+
 
     gameLoop(0);
   </script>
 </body>
 </html>
+
+
+
+
